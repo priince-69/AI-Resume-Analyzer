@@ -5,16 +5,26 @@ import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
 const UploadButton = generateUploadButton<OurFileRouter>();
 
-export default function ResumeUpload() {
+type ResumeUploadProps = {
+  onUploadComplete?: () => void;
+};
+
+export default function ResumeUpload({
+  onUploadComplete,
+}: ResumeUploadProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       <UploadButton
         endpoint="resumeUploader"
         onClientUploadComplete={async (res) => {
-          console.log("UPLOAD SUCCESS:", res);
-
           try {
-            const file = res[0];
+            const file = res?.[0];
+
+            if (!file) {
+              throw new Error("No uploaded file found");
+            }
+
+            console.log("UPLOAD SUCCESS:", file);
 
             const response = await fetch("/api/resumes", {
               method: "POST",
@@ -30,10 +40,15 @@ export default function ResumeUpload() {
             const data = await response.json();
 
             if (!response.ok) {
-              throw new Error(data.message || "Failed to save resume");
+              throw new Error(
+                data.message || "Failed to save resume"
+              );
             }
 
             console.log("RESUME SAVED:", data);
+
+            // Refresh dashboard resumes
+            onUploadComplete?.();
 
             alert("Resume uploaded and saved successfully!");
           } catch (error) {
