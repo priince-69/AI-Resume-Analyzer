@@ -6,16 +6,12 @@ import {
   Settings,
   TrendingUp,
 } from "lucide-react";
+import ResumeUpload from "@/src/components/resume/resume-upload";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default function DashboardPage() {
@@ -25,46 +21,31 @@ export default function DashboardPage() {
         {/* Sidebar */}
         <aside className="hidden w-64 border-r bg-white md:flex md:flex-col">
           <div className="flex h-16 items-center px-6">
-            <h1 className="text-lg font-bold">
-              AI Resume Analyzer
-            </h1>
+            <h1 className="text-lg font-bold">AI Resume Analyzer</h1>
           </div>
 
           <Separator />
 
           <nav className="flex-1 space-y-2 p-4">
-            <Button
-              variant="secondary"
-              className="w-full justify-start gap-3"
-            >
+            <Button variant="secondary" className="w-full justify-start gap-3">
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </Button>
 
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-            >
+            <Button variant="ghost" className="w-full justify-start gap-3">
               <FileText className="h-4 w-4" />
               My Resumes
             </Button>
 
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-            >
+            <Button variant="ghost" className="w-full justify-start gap-3">
               <Settings className="h-4 w-4" />
               Settings
             </Button>
           </nav>
 
           <div className="border-t p-4">
-            <p className="text-xs text-slate-500">
-              AI Resume Analyzer
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Smart career insights
-            </p>
+            <p className="text-xs text-slate-500">AI Resume Analyzer</p>
+            <p className="mt-1 text-xs text-slate-400">Smart career insights</p>
           </div>
         </aside>
 
@@ -73,9 +54,7 @@ export default function DashboardPage() {
           {/* Header */}
           <header className="flex h-16 items-center justify-between border-b bg-white px-6">
             <div>
-              <h2 className="text-lg font-semibold">
-                Dashboard
-              </h2>
+              <h2 className="text-lg font-semibold">Dashboard</h2>
               <p className="text-sm text-slate-500">
                 Analyze and improve your resume
               </p>
@@ -126,9 +105,7 @@ export default function DashboardPage() {
 
                 <CardContent>
                   <div className="text-2xl font-bold">—</div>
-                  <p className="text-xs text-slate-500">
-                    No analysis yet
-                  </p>
+                  <p className="text-xs text-slate-500">No analysis yet</p>
                 </CardContent>
               </Card>
 
@@ -142,9 +119,7 @@ export default function DashboardPage() {
                 </CardHeader>
 
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    Get Started
-                  </div>
+                  <div className="text-2xl font-bold">Get Started</div>
                   <p className="text-xs text-slate-500">
                     Your analyzer is ready
                   </p>
@@ -153,23 +128,23 @@ export default function DashboardPage() {
             </section>
 
             {/* Upload CTA */}
+            {/* Upload CTA */}
             <Card>
-              <CardContent className="flex flex-col items-center justify-between gap-6 p-8 text-center md:flex-row md:text-left">
-                <div>
-                  <h3 className="text-xl font-semibold">
-                    Analyze your resume
-                  </h3>
+              <CardContent className="space-y-6 p-8">
+                <div className="flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
+                  <div>
+                    <h3 className="text-xl font-semibold">
+                      Analyze your resume
+                    </h3>
 
-                  <p className="mt-2 max-w-xl text-sm text-slate-500">
-                    Upload your resume and let AI evaluate your skills,
-                    experience, keywords, and overall job readiness.
-                  </p>
+                    <p className="mt-2 max-w-xl text-sm text-slate-500">
+                      Upload your resume and let AI evaluate your skills,
+                      experience, keywords, and overall job readiness.
+                    </p>
+                  </div>
                 </div>
 
-                <Button size="lg" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Analyze Resume
-                </Button>
+                <ResumeUpload />
               </CardContent>
             </Card>
 
@@ -177,9 +152,7 @@ export default function DashboardPage() {
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">
-                    Recent Analyses
-                  </h3>
+                  <h3 className="text-lg font-semibold">Recent Analyses</h3>
 
                   <p className="text-sm text-slate-500">
                     Your latest resume analysis results
@@ -195,13 +168,11 @@ export default function DashboardPage() {
                     </AvatarFallback>
                   </Avatar>
 
-                  <h4 className="font-medium">
-                    No resume analyses yet
-                  </h4>
+                  <h4 className="font-medium">No resume analyses yet</h4>
 
                   <p className="mt-1 max-w-sm text-sm text-slate-500">
-                    Upload your first resume to see your AI analysis
-                    results here.
+                    Upload your first resume to see your AI analysis results
+                    here.
                   </p>
                 </CardContent>
               </Card>
@@ -212,3 +183,18 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+// import ResumeUpload from "@/src/components/resume/resume-upload";
+// export default function DashboardPage() {
+//   return (
+//     <main className="p-8">
+//       <h1 className="text-3xl font-bold">
+//         AI Resume Analyzer
+//       </h1>
+
+//       <div className="mt-8 max-w-2xl">
+//         <ResumeUpload />
+//       </div>
+//     </main>
+//   );
+// }

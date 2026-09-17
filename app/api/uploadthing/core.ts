@@ -1,9 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
-import {
-  createUploadthing,
-  type FileRouter,
-} from "uploadthing/next";
-import { UploadThingError } from "uploadthing/server";
+import { createUploadthing, type FileRouter } from "uploadthing/next";
 
 const f = createUploadthing();
 
@@ -13,29 +8,14 @@ export const uploadRouter = {
       maxFileSize: "8MB",
       maxFileCount: 1,
     },
-  })
-    .middleware(async () => {
-      const user = await currentUser();
+  }).onUploadComplete(async ({ file }) => {
+    console.log("Resume uploaded:", file.ufsUrl);
 
-      if (!user) {
-        throw new UploadThingError("Unauthorized");
-      }
-
-      return {
-        userId: user.id,
-      };
-    })
-    .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Resume uploaded by:", metadata.userId);
-      console.log("File URL:", file.ufsUrl);
-
-      return {
-        userId: metadata.userId,
-        url: file.ufsUrl,
-        fileKey: file.key,
-        fileName: file.name,
-      };
-    }),
+    return {
+      url: file.ufsUrl,
+      name: file.name,
+    };
+  }),
 } satisfies FileRouter;
 
-export type UploadRouter = typeof uploadRouter;
+export type OurFileRouter = typeof uploadRouter;
