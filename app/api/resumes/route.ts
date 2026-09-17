@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { connectDB } from "@/src/lib/db/mongodb";
 import { Resume } from "@/src/lib/db/models/Resume";
+import { extractPdfText } from "@/src/lib/pdf/extract-text";
 
 // GET - Fetch logged-in user's resumes
 export async function GET() {
@@ -43,6 +44,7 @@ export async function GET() {
 }
 
 // POST - Save uploaded resume
+// POST - Save uploaded resume
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -70,12 +72,41 @@ export async function POST(request: Request) {
       );
     }
 
+    // Connect to MongoDB
     await connectDB();
 
+    // Download uploaded PDF
+    const response = await fetch(url, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to download uploaded resume");
+    }
+
+    // Convert PDF into Buffer
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Extract text from PDF
+    const extractedText = await extractPdfText(buffer);
+
+    if (!extractedText) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Could not extract text from resume",
+        },
+        { status: 422 }
+      );
+    }
+
+    // Save resume + extracted text
     const resume = await Resume.create({
       userId,
       name,
       url,
+      extractedText,
     });
 
     return NextResponse.json(
@@ -98,3 +129,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
