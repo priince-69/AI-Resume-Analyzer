@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
@@ -11,6 +11,8 @@ import {
   Loader2,
   ExternalLink,
   BarChart3,
+  Target,
+  ArrowRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -66,9 +68,7 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data?.message || "Failed to fetch resumes"
-        );
+        throw new Error(data?.message || "Failed to fetch resumes");
       }
 
       setResumes(data.resumes ?? []);
@@ -85,65 +85,58 @@ export default function DashboardPage() {
   // --------------------------------------------------
 
   const handleAnalyze = async (resumeId: string) => {
-  try {
-    setAnalyzingId(resumeId);
+    try {
+      setAnalyzingId(resumeId);
 
-    const response = await fetch(
-      `/api/resumes/${resumeId}/analyze`,
-      {
+      const response = await fetch(`/api/resumes/${resumeId}/analyze`, {
         method: "POST",
         headers: {
           Accept: "application/json",
         },
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+
+      let data: AnalysisResponse;
+
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        await response.text();
+
+        throw new Error(
+          response.status === 404
+            ? "Analysis API route not found. Restart the Next.js server."
+            : `Server returned an unexpected response (${response.status})`
+        );
       }
-    );
 
-    const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to analyze resume");
+      }
 
-    let data: AnalysisResponse;
+      if (!data.analysis?._id) {
+        throw new Error(
+          "Analysis completed but analysis ID was not returned"
+        );
+      }
 
-    if (contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
+      console.log("RESUME ANALYSIS SUCCESS:", data);
 
-      throw new Error(
-        response.status === 404
-          ? "Analysis API route not found. Restart the Next.js server."
-          : `Server returned an unexpected response (${response.status})`
-      );
+      router.push(`/dashboard/analysis/${data.analysis._id}`);
+    } catch (error) {
+      console.error("RESUME ANALYSIS ERROR:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to analyze resume";
+
+      alert(message);
+    } finally {
+      setAnalyzingId(null);
     }
-
-    if (!response.ok || !data.success) {
-      throw new Error(
-        data.message || "Failed to analyze resume"
-      );
-    }
-
-    if (!data.analysis?._id) {
-      throw new Error(
-        "Analysis completed but analysis ID was not returned"
-      );
-    }
-
-    console.log("RESUME ANALYSIS SUCCESS:", data);
-
-    router.push(
-      `/dashboard/analysis/${data.analysis._id}`
-    );
-  } catch (error) {
-    console.error("RESUME ANALYSIS ERROR:", error);
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to analyze resume";
-
-    alert(message);
-  } finally {
-    setAnalyzingId(null);
-  }
-};
+  };
 
   // --------------------------------------------------
   // Client mount
@@ -155,7 +148,7 @@ export default function DashboardPage() {
   }, []);
 
   // --------------------------------------------------
-  // Format date safely
+  // Format date
   // --------------------------------------------------
 
   const formatDate = (date: string) => {
@@ -216,6 +209,15 @@ export default function DashboardPage() {
             >
               <FileText className="h-4 w-4" />
               My Resumes
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+              onClick={() => router.push("/dashboard/job-match")}
+            >
+              <Target className="h-4 w-4" />
+              Job Match
             </Button>
 
             <Button
@@ -284,9 +286,8 @@ export default function DashboardPage() {
                   </h2>
 
                   <p className="mt-2 max-w-2xl text-sm text-slate-500 sm:text-base">
-                    Upload your resume and get AI-powered
-                    insights to improve your chances of landing
-                    your next job.
+                    Upload your resume and get AI-powered insights
+                    to improve your chances of landing your next job.
                   </p>
                 </div>
 
@@ -306,7 +307,7 @@ export default function DashboardPage() {
 
               {/* Resume count */}
 
-              <Card>
+              <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
                     Resumes Uploaded
@@ -328,7 +329,7 @@ export default function DashboardPage() {
 
               {/* Average score */}
 
-              <Card>
+              <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
                     Average Score
@@ -350,7 +351,7 @@ export default function DashboardPage() {
 
               {/* Status */}
 
-              <Card>
+              <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">
                     Latest Status
@@ -384,12 +385,12 @@ export default function DashboardPage() {
                 RESUME UPLOAD
             ================================================= */}
 
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden transition-all duration-300 hover:shadow-lg">
               <CardContent className="space-y-6 p-6 sm:p-8">
 
                 <div className="mx-auto max-w-2xl text-center">
 
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 shadow-sm">
                     <Sparkles className="h-5 w-5 text-white" />
                   </div>
 
@@ -411,6 +412,60 @@ export default function DashboardPage() {
 
               </CardContent>
             </Card>
+
+            {/* =================================================
+                JOB MATCH
+            ================================================= */}
+
+            <section>
+              <Card className="group overflow-hidden border-slate-200 transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl">
+
+                <CardContent className="p-6 sm:p-8">
+
+                  <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+
+                    <div className="flex items-start gap-4">
+
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-900 shadow-sm transition-transform duration-300 group-hover:scale-105">
+                        <Target className="h-5 w-5 text-white" />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-semibold">
+                            Match Your Resume to a Job
+                          </h3>
+
+                          <Badge variant="secondary">
+                            AI
+                          </Badge>
+                        </div>
+
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                          Compare your resume with any job description
+                          and discover your match score, missing skills,
+                          keywords, and improvement suggestions.
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <Button
+                      className="w-full gap-2 md:w-auto"
+                      onClick={() =>
+                        router.push("/dashboard/job-match")
+                      }
+                    >
+                      Match My Resume
+                      <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </Button>
+
+                  </div>
+
+                </CardContent>
+
+              </Card>
+            </section>
 
             {/* =================================================
                 RECENT RESUMES
@@ -475,13 +530,14 @@ export default function DashboardPage() {
                     <div className="space-y-3">
 
                       {resumes.map((resume) => {
+
                         const isAnalyzing =
                           analyzingId === resume._id;
 
                         return (
                           <div
                             key={resume._id}
-                            className="flex flex-col gap-4 rounded-xl border bg-white p-4 transition hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                            className="flex flex-col gap-4 rounded-xl border bg-white p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
                           >
 
                             {/* Resume info */}
@@ -535,6 +591,7 @@ export default function DashboardPage() {
                                   handleAnalyze(resume._id)
                                 }
                               >
+
                                 {isAnalyzing ? (
                                   <>
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -546,6 +603,7 @@ export default function DashboardPage() {
                                     Analyze
                                   </>
                                 )}
+
                               </Button>
 
                             </div>
@@ -555,6 +613,7 @@ export default function DashboardPage() {
                       })}
 
                     </div>
+
                   )}
 
                 </CardContent>
