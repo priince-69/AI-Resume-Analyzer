@@ -101,7 +101,10 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to analyze resume",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to analyze resume",
       },
       { status: 500 }
     );
