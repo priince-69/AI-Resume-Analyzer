@@ -9,7 +9,10 @@ import {
   TrendingUp,
   Sparkles,
   Loader2,
+  ExternalLink,
+  BarChart3,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import ResumeUpload from "@/src/components/resume/resume-upload";
 
@@ -31,7 +34,17 @@ type Resume = {
   createdAt: string;
 };
 
+type AnalysisResponse = {
+  success: boolean;
+  message?: string;
+  analysis?: {
+    _id: string;
+  };
+};
+
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -71,43 +84,66 @@ export default function DashboardPage() {
   // Analyze resume
   // --------------------------------------------------
 
-  const analyzeResume = async (resumeId: string) => {
-    try {
-      setAnalyzingId(resumeId);
+  const handleAnalyze = async (resumeId: string) => {
+  try {
+    setAnalyzingId(resumeId);
 
-      const response = await fetch(
-        `/api/resumes/${resumeId}/analyze`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message || "Failed to analyze resume"
-        );
+    const response = await fetch(
+      `/api/resumes/${resumeId}/analyze`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
       }
+    );
 
-      console.log("RESUME ANALYSIS SUCCESS:", data);
+    const contentType = response.headers.get("content-type") || "";
 
-      alert("Resume analyzed successfully!");
-    } catch (error) {
-      console.error("RESUME ANALYSIS ERROR:", error);
+    let data: AnalysisResponse;
 
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to analyze resume"
+    if (contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+
+      throw new Error(
+        response.status === 404
+          ? "Analysis API route not found. Restart the Next.js server."
+          : `Server returned an unexpected response (${response.status})`
       );
-    } finally {
-      setAnalyzingId(null);
     }
-  };
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.message || "Failed to analyze resume"
+      );
+    }
+
+    if (!data.analysis?._id) {
+      throw new Error(
+        "Analysis completed but analysis ID was not returned"
+      );
+    }
+
+    console.log("RESUME ANALYSIS SUCCESS:", data);
+
+    router.push(
+      `/dashboard/analysis/${data.analysis._id}`
+    );
+  } catch (error) {
+    console.error("RESUME ANALYSIS ERROR:", error);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to analyze resume";
+
+    alert(message);
+  } finally {
+    setAnalyzingId(null);
+  }
+};
 
   // --------------------------------------------------
   // Client mount
@@ -131,7 +167,7 @@ export default function DashboardPage() {
 
     return new Intl.DateTimeFormat("en-IN", {
       day: "2-digit",
-      month: "2-digit",
+      month: "short",
       year: "numeric",
     }).format(parsedDate);
   };
@@ -150,14 +186,21 @@ export default function DashboardPage() {
 
         <aside className="hidden w-64 border-r bg-white md:flex md:flex-col">
           <div className="flex h-16 items-center px-6">
-            <h1 className="text-lg font-bold">
-              AI Resume Analyzer
-            </h1>
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+
+              <h1 className="text-lg font-bold">
+                AI Resume
+              </h1>
+            </div>
           </div>
 
           <Separator />
 
           <nav className="flex-1 space-y-2 p-4">
+
             <Button
               variant="secondary"
               className="w-full justify-start gap-3"
@@ -169,6 +212,7 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               className="w-full justify-start gap-3"
+              onClick={() => router.push("/dashboard")}
             >
               <FileText className="h-4 w-4" />
               My Resumes
@@ -181,10 +225,11 @@ export default function DashboardPage() {
               <Settings className="h-4 w-4" />
               Settings
             </Button>
+
           </nav>
 
           <div className="border-t p-4">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs font-medium text-slate-600">
               AI Resume Analyzer
             </p>
 
@@ -200,22 +245,20 @@ export default function DashboardPage() {
 
         <main className="flex-1">
 
-          {/* -------------------------------------------------
-              HEADER
-          ------------------------------------------------- */}
+          {/* Header */}
 
-          <header className="flex h-16 items-center justify-between border-b bg-white px-6">
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white/95 px-4 backdrop-blur sm:px-6">
+
             <div>
               <h2 className="text-lg font-semibold">
                 Dashboard
               </h2>
 
-              <p className="text-sm text-slate-500">
+              <p className="hidden text-sm text-slate-500 sm:block">
                 Analyze and improve your resume
               </p>
             </div>
 
-            {/* Prevent Clerk hydration mismatch */}
             <div className="flex h-9 w-9 items-center justify-center">
               {mounted ? (
                 <UserButton />
@@ -223,23 +266,36 @@ export default function DashboardPage() {
                 <div className="h-8 w-8 rounded-full bg-slate-200" />
               )}
             </div>
+
           </header>
 
-          <div className="space-y-8 p-6 lg:p-8">
+          <div className="space-y-8 p-4 sm:p-6 lg:p-8">
 
             {/* =================================================
                 WELCOME
             ================================================= */}
 
             <section>
-              <h2 className="text-2xl font-bold tracking-tight">
-                Welcome back 👋
-              </h2>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
-              <p className="mt-1 text-slate-500">
-                Upload your resume and get AI-powered career
-                insights.
-              </p>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Welcome back 👋
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm text-slate-500 sm:text-base">
+                    Upload your resume and get AI-powered
+                    insights to improve your chances of landing
+                    your next job.
+                  </p>
+                </div>
+
+                <div className="hidden items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-xs text-slate-600 sm:flex">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  AI-powered analysis
+                </div>
+
+              </div>
             </section>
 
             {/* =================================================
@@ -248,7 +304,7 @@ export default function DashboardPage() {
 
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
-              {/* Resume Count */}
+              {/* Resume count */}
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -270,7 +326,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Average Score */}
+              {/* Average score */}
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -287,12 +343,12 @@ export default function DashboardPage() {
                   </div>
 
                   <p className="text-xs text-slate-500">
-                    AI analysis coming next
+                    Available after analysis
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Latest Status */}
+              {/* Status */}
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -302,8 +358,8 @@ export default function DashboardPage() {
 
                   <Badge variant="secondary">
                     {resumes.length > 0
-                      ? "Uploaded"
-                      : "Ready"}
+                      ? "Ready"
+                      : "Get Started"}
                   </Badge>
                 </CardHeader>
 
@@ -311,13 +367,13 @@ export default function DashboardPage() {
                   <div className="text-2xl font-bold">
                     {resumes.length > 0
                       ? "Ready"
-                      : "Get Started"}
+                      : "Start"}
                   </div>
 
                   <p className="text-xs text-slate-500">
                     {resumes.length > 0
                       ? "Resume ready for analysis"
-                      : "Your analyzer is ready"}
+                      : "Upload a resume to begin"}
                   </p>
                 </CardContent>
               </Card>
@@ -328,19 +384,25 @@ export default function DashboardPage() {
                 RESUME UPLOAD
             ================================================= */}
 
-            <Card>
-              <CardContent className="space-y-6 p-8">
+            <Card className="overflow-hidden">
+              <CardContent className="space-y-6 p-6 sm:p-8">
 
-                <div className="text-center">
-                  <h3 className="text-xl font-semibold">
+                <div className="mx-auto max-w-2xl text-center">
+
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900">
+                    <Sparkles className="h-5 w-5 text-white" />
+                  </div>
+
+                  <h3 className="text-xl font-semibold sm:text-2xl">
                     Analyze your resume
                   </h3>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    Upload your resume and let AI evaluate your
-                    skills, experience, keywords, and overall job
-                    readiness.
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Upload your resume and let AI evaluate
+                    your skills, experience, keywords, strengths,
+                    weaknesses, and overall job readiness.
                   </p>
+
                 </div>
 
                 <ResumeUpload
@@ -361,20 +423,28 @@ export default function DashboardPage() {
                   Recent Resumes
                 </h3>
 
-                <p className="text-sm text-slate-500">
-                  Your recently uploaded resumes
+                <p className="mt-1 text-sm text-slate-500">
+                  Analyze your uploaded resumes and view
+                  AI-generated insights.
                 </p>
               </div>
 
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
 
                   {/* Loading */}
 
                   {loading ? (
-                    <p className="py-8 text-center text-sm text-slate-500">
-                      Loading resumes...
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+
+                      <Loader2 className="mb-3 h-6 w-6 animate-spin text-slate-400" />
+
+                      <p className="text-sm text-slate-500">
+                        Loading your resumes...
+                      </p>
+
+                    </div>
+
                   ) : resumes.length === 0 ? (
 
                     /* Empty State */
@@ -392,8 +462,8 @@ export default function DashboardPage() {
                       </h4>
 
                       <p className="mt-1 max-w-sm text-sm text-slate-500">
-                        Upload your first resume to start your AI
-                        analysis.
+                        Upload your first resume above to
+                        start your AI-powered analysis.
                       </p>
 
                     </div>
@@ -404,78 +474,85 @@ export default function DashboardPage() {
 
                     <div className="space-y-3">
 
-                      {resumes.map((resume) => (
-                        <div
-                          key={resume._id}
-                          className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-                        >
+                      {resumes.map((resume) => {
+                        const isAnalyzing =
+                          analyzingId === resume._id;
 
-                          {/* Resume information */}
+                        return (
+                          <div
+                            key={resume._id}
+                            className="flex flex-col gap-4 rounded-xl border bg-white p-4 transition hover:border-slate-300 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                          >
 
-                          <div className="flex items-center gap-3">
+                            {/* Resume info */}
 
-                            <FileText className="h-5 w-5 text-slate-500" />
+                            <div className="flex min-w-0 items-center gap-3">
 
-                            <div>
-                              <p className="font-medium">
-                                {resume.name}
-                              </p>
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                                <FileText className="h-5 w-5 text-slate-600" />
+                              </div>
 
-                              <p className="text-xs text-slate-500">
-                                {formatDate(resume.createdAt)}
-                              </p>
+                              <div className="min-w-0">
+
+                                <p className="truncate font-medium">
+                                  {resume.name}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Uploaded{" "}
+                                  {formatDate(resume.createdAt)}
+                                </p>
+
+                              </div>
+
+                            </div>
+
+                            {/* Actions */}
+
+                            <div className="flex w-full gap-2 sm:w-auto">
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 gap-2 sm:flex-none"
+                                asChild
+                              >
+                                <a
+                                  href={resume.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  View
+                                </a>
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                className="flex-1 gap-2 sm:flex-none"
+                                disabled={isAnalyzing}
+                                onClick={() =>
+                                  handleAnalyze(resume._id)
+                                }
+                              >
+                                {isAnalyzing ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Analyzing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <BarChart3 className="h-4 w-4" />
+                                    Analyze
+                                  </>
+                                )}
+                              </Button>
+
                             </div>
 
                           </div>
-
-                          {/* Actions */}
-
-                          <div className="flex items-center gap-2">
-
-                            {/* View */}
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <a
-                                href={resume.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                View
-                              </a>
-                            </Button>
-
-                            {/* Analyze */}
-
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                analyzeResume(resume._id)
-                              }
-                              disabled={
-                                analyzingId === resume._id
-                              }
-                            >
-                              {analyzingId === resume._id ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Analyzing...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="mr-2 h-4 w-4" />
-                                  Analyze
-                                </>
-                              )}
-                            </Button>
-
-                          </div>
-
-                        </div>
-                      ))}
+                        );
+                      })}
 
                     </div>
                   )}
@@ -487,7 +564,6 @@ export default function DashboardPage() {
 
           </div>
         </main>
-
       </div>
     </div>
   );

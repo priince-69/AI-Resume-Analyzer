@@ -1,13 +1,14 @@
-import { auth } from "@clerk/nextjs/server";
+ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/src/lib/db/mongodb";
 import { Resume } from "@/src/lib/db/models/Resume";
+import { Analysis } from "@/src/lib/db/models/Analysis";
 import { extractPdfText } from "@/src/lib/pdf/extract-text";
 
 export const runtime = "nodejs";
 
-// GET - Fetch logged-in user's resumes
+// GET - Fetch logged-in user's resumes with analysis information
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -28,9 +29,40 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
+    const resumeIds = resumes.map((resume) => resume._id);
+
+    const analyses = await Analysis.find({
+      userId,
+      resumeId: { $in: resumeIds },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const analysisMap = new Map(
+      analyses.map((analysis) => [
+        analysis.resumeId.toString(),
+        {
+          _id: analysis._id.toString(),
+          overallScore: analysis.overallScore,
+          experienceLevel: analysis.experienceLevel,
+          jobReadiness: analysis.jobReadiness,
+          createdAt: analysis.createdAt,
+        },
+      ])
+    );
+
+    const resumesWithAnalysis = resumes.map((resume) => {
+      const analysis = analysisMap.get(resume._id.toString());
+
+      return {
+        ...resume,
+        analysis: analysis ?? null,
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      resumes,
+      resumes: resumesWithAnalysis,
     });
   } catch (error) {
     console.error("GET RESUMES ERROR:", error);
@@ -61,10 +93,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-
     const { name, url } = body;
 
-    // Validate request body
     if (!name || !url) {
       return NextResponse.json(
         {
@@ -77,7 +107,6 @@ export async function POST(request: Request) {
 
     await connectDB();
 
-    // Extract text from uploaded PDF
     console.log(`Extracting text from resume: ${name}`);
 
     const extractedText = await extractPdfText(url);
@@ -97,7 +126,6 @@ export async function POST(request: Request) {
       `PDF text extracted successfully. Characters: ${extractedText.length}`
     );
 
-    // Save resume and extracted text
     const resume = await Resume.create({
       userId,
       name,

@@ -12,8 +12,66 @@ type RouteContext = {
   }>;
 };
 
+// GET - Fetch existing analysis
+export async function GET(
+  _request: Request,
+  context: RouteContext
+) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await context.params;
+
+    await connectDB();
+
+    const analysis = await Analysis.findOne({
+      _id: id,
+      userId,
+    }).lean();
+
+    if (!analysis) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Analysis not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      analysis,
+    });
+  } catch (error) {
+    console.error("GET ANALYSIS ERROR:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch analysis",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Analyze resume
 export async function POST(
-  request: Request,
+  _request: Request,
   context: RouteContext
 ) {
   try {
@@ -48,7 +106,7 @@ export async function POST(
       );
     }
 
-    if (!resume.extractedText) {
+    if (!resume.extractedText?.trim()) {
       return NextResponse.json(
         {
           success: false,
@@ -58,10 +116,11 @@ export async function POST(
       );
     }
 
+    // Return existing analysis instead of calling Gemini again
     const existingAnalysis = await Analysis.findOne({
       resumeId: resume._id,
       userId,
-    });
+    }).lean();
 
     if (existingAnalysis) {
       return NextResponse.json({
@@ -71,8 +130,12 @@ export async function POST(
       });
     }
 
-    const result = await analyzeResume(resume.extractedText);
+    // Analyze with Gemini
+    const result = await analyzeResume(
+      resume.extractedText
+    );
 
+    // Save analysis
     const analysis = await Analysis.create({
       userId,
       resumeId: resume._id,
