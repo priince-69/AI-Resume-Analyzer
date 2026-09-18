@@ -5,6 +5,8 @@ import { connectDB } from "@/src/lib/db/mongodb";
 import { Resume } from "@/src/lib/db/models/Resume";
 import { extractPdfText } from "@/src/lib/pdf/extract-text";
 
+export const runtime = "nodejs";
+
 // GET - Fetch logged-in user's resumes
 export async function GET() {
   try {
@@ -31,7 +33,7 @@ export async function GET() {
       resumes,
     });
   } catch (error) {
-    console.error("Resume fetch error:", error);
+    console.error("GET RESUMES ERROR:", error);
 
     return NextResponse.json(
       {
@@ -43,8 +45,7 @@ export async function GET() {
   }
 }
 
-// POST - Save uploaded resume
-// POST - Save uploaded resume
+// POST - Save uploaded resume and extract PDF text
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -60,8 +61,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+
     const { name, url } = body;
 
+    // Validate request body
     if (!name || !url) {
       return NextResponse.json(
         {
@@ -72,42 +75,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // Connect to MongoDB
     await connectDB();
 
-    // Download uploaded PDF
-    const response = await fetch(url, {
-      cache: "no-store",
-    });
+    // Extract text from uploaded PDF
+    console.log(`Extracting text from resume: ${name}`);
 
-    if (!response.ok) {
-      throw new Error("Failed to download uploaded resume");
-    }
+    const extractedText = await extractPdfText(url);
 
-    // Convert PDF into Buffer
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Extract text from PDF
-    const extractedText = await extractPdfText(buffer);
-
-    if (!extractedText) {
+    if (!extractedText.trim()) {
       return NextResponse.json(
         {
           success: false,
-          message: "Could not extract text from resume",
+          message:
+            "Could not extract text from this PDF. Please upload a text-based PDF.",
         },
         { status: 422 }
       );
     }
 
-    // Save resume + extracted text
+    console.log(
+      `PDF text extracted successfully. Characters: ${extractedText.length}`
+    );
+
+    // Save resume and extracted text
     const resume = await Resume.create({
       userId,
       name,
       url,
       extractedText,
     });
+
+    console.log(`Resume saved successfully: ${resume._id}`);
 
     return NextResponse.json(
       {
@@ -118,7 +116,7 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Resume save error:", error);
+    console.error("POST RESUME ERROR:", error);
 
     return NextResponse.json(
       {
@@ -129,4 +127,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

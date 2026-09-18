@@ -1,11 +1,8 @@
-import { getData } from "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 
-PDFParse.setWorker(getData());
-
-export async function extractPdfText(buffer: Buffer) {
+export async function extractPdfText(url: string): Promise<string> {
   const parser = new PDFParse({
-    data: buffer,
+    url,
   });
 
   try {
