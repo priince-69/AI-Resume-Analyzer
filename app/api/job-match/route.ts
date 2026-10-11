@@ -147,3 +147,48 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    // 1. Authenticate user
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        { status: 401 }
+      );
+    }
+
+    // 2. Connect to MongoDB
+    await connectDB();
+
+    // 3. Fetch user's job match history
+    const jobMatches = await JobMatch.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 4. Return history
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Job match history fetched successfully",
+        jobMatches,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("JOB MATCH HISTORY API ERROR:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to fetch job match history",
+      },
+      { status: 500 }
+    );
+  }
+}
